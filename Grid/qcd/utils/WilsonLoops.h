@@ -587,6 +587,26 @@ public:
     }
   }
 
+  static void StapleUpper(GaugeMat &staple,
+                          const GaugeMat &U_mu, const GaugeMat &U_nu,
+                          int mu, int nu) {
+    if (nu != mu) {
+      // mu
+      // ^
+      // |__>  nu
+
+      //    __
+      //      |
+      //    __|
+      //
+      staple = Gimpl::ShiftStaple(
+               Gimpl::CovShiftForward(U_nu, nu,
+               Gimpl::CovShiftBackward(U_mu, mu,
+               Gimpl::CovShiftIdentityBackward(U_nu, nu))), mu);
+    }
+  }
+
+
   ////////////////////////////////////////////////////////////////////////
   // the sum over all staples on each site in direction mu,nu, lower part
   ////////////////////////////////////////////////////////////////////////
@@ -617,6 +637,26 @@ public:
     }
   }
 
+  static void StapleLower(GaugeMat &staple,
+                          const GaugeMat &U_mu, const GaugeMat &U_nu,
+                          int mu, int nu) {
+    if (nu != mu) {
+      // mu
+      // ^
+      // |__>  nu
+
+      //  __
+      // |
+      // |__
+      //
+      //
+      staple = Gimpl::ShiftStaple(
+               Gimpl::CovShiftBackward(U_nu, nu,
+               Gimpl::CovShiftBackward(U_mu, mu, U_nu)), mu);
+    }
+  }
+
+
   //////////////////////////////////////////////////////
   //  Field Strength
   //////////////////////////////////////////////////////
@@ -638,20 +678,52 @@ public:
       FS = 0.125*(FS - adj(FS));
   }
 
+  static void FieldStrength(GaugeMat &FS, const GaugeLorentz &U,
+                            const GaugeMat &U_mu, const GaugeMat &U_nu,
+                            int mu, int nu) {
+    // Fmn +--<--+  Ut +--<--+
+    //     |     |     |     |
+      //  (x)+-->--+     +-->--+(x)  - h.c.
+    //     |     |     |     |
+    //     +--<--+     +--<--+
+
+    GridBase *grid = U.Grid();
+    GaugeMat Vup(grid), Vdn(grid);
+
+    StapleUpper(Vup, U_mu, U_nu, mu, nu);
+    StapleLower(Vdn, U_mu, U_nu, mu, nu);
+
+    GaugeMat v = Vup - Vdn;
+    GaugeMat vu = v * U_mu;
+
+    //FS = 0.25 * Ta(U_mu * v + Cshift(vu, mu, -1));
+    FS = (U_mu * v + Gimpl::CshiftLink(vu, mu, -1));
+    FS = 0.125 * (FS - adj(FS));
+  }
+
   static Real TopologicalCharge(const GaugeLorentz &U){
+    GridBase *grid = U.Grid();
+    GaugeMat Ux(grid), Uy(grid), Uz(grid), Ut(grid);
+    GaugeMat Bx(grid), By(grid), Bz(grid);
+    GaugeMat Ex(grid), Ey(grid), Ez(grid);
+
     // 4d topological charge
     GRID_ASSERT(Nd==4);
+
+    Ux = PeekIndex<LorentzIndex>(U, Xdir);
+    Uy = PeekIndex<LorentzIndex>(U, Ydir);
+    Uz = PeekIndex<LorentzIndex>(U, Zdir);
+    Ut = PeekIndex<LorentzIndex>(U, Tdir);
+
     // Bx = -iF(y,z), By = -iF(z,y), Bz = -iF(x,y)
-    GaugeMat Bx(U.Grid()), By(U.Grid()), Bz(U.Grid());
-    FieldStrength(Bx, U, Ydir, Zdir);
-    FieldStrength(By, U, Zdir, Xdir);
-    FieldStrength(Bz, U, Xdir, Ydir);
+    FieldStrength(Bx, U, Uy, Uz, Ydir, Zdir);
+    FieldStrength(By, U, Uz, Ux, Zdir, Xdir);
+    FieldStrength(Bz, U, Ux, Uy, Xdir, Ydir);
 
     // Ex = -iF(t,x), Ey = -iF(t,y), Ez = -iF(t,z)
-    GaugeMat Ex(U.Grid()), Ey(U.Grid()), Ez(U.Grid());
-    FieldStrength(Ex, U, Tdir, Xdir);
-    FieldStrength(Ey, U, Tdir, Ydir);
-    FieldStrength(Ez, U, Tdir, Zdir);
+    FieldStrength(Ex, U, Ut, Ux, Tdir, Xdir);
+    FieldStrength(Ey, U, Ut, Uy, Tdir, Ydir);
+    FieldStrength(Ez, U, Ut, Uz, Tdir, Zdir);
 
     double coeff = 8.0/(32.0*M_PI*M_PI);
 
