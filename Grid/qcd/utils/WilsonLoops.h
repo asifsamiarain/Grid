@@ -569,21 +569,7 @@ public:
         U[d] = PeekIndex<LorentzIndex>(Umu, d);// some redundant copies
       }
 
-      // mu
-      // ^
-      // |__>  nu
-
-      //    __
-      //      |
-      //    __|
-      //
-
-      staple = Gimpl::ShiftStaple(
-				  Gimpl::CovShiftForward(
-							 U[nu], nu,
-							 Gimpl::CovShiftBackward(
-										 U[mu], mu, Gimpl::CovShiftIdentityBackward(U[nu], nu))),
-				  mu);
+      StapleUpper(staple, U[mu], U[nu], mu, nu);
     }
   }
 
@@ -620,20 +606,7 @@ public:
         U[d] = PeekIndex<LorentzIndex>(Umu, d);// some redundant copies
       }
 
-      // mu
-      // ^
-      // |__>  nu
-
-      //  __
-      // |
-      // |__
-      //
-      //
-      staple = Gimpl::ShiftStaple(
-				  Gimpl::CovShiftBackward(U[nu], nu,
-                                  Gimpl::CovShiftBackward(U[mu], mu, U[nu])),
-          mu);
-
+      StapleLower(staple, U[mu], U[nu], mu, nu);
     }
   }
 
