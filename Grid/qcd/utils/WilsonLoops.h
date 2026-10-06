@@ -619,7 +619,6 @@ public:
   static void StapleDifference(GaugeMat &staple,
                                const GaugeMat &U_mu, const GaugeMat &U_nu,
                                int mu, int nu) {
-    GRID_TRACE("StapleDifference");
     if (nu != mu) {
         GaugeMat Vup(staple.Grid());
         GaugeMat Vdn(staple.Grid());
