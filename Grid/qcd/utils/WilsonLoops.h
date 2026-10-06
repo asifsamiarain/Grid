@@ -684,7 +684,7 @@ public:
 
     StapleDifference(v, U_mu, U_nu, mu, nu);
 
-    //FS = 0.25 * Ta(U_mu * v + Cshift(vu, mu, -1));
+    //FS = 0.25 * Ta(U_mu * v + Cshift(v * U_mu, mu, -1));
     FS = (U_mu * v + Gimpl::CshiftLink(v * U_mu, mu, -1));
     FS = 0.125 * (FS - adj(FS));
   }
