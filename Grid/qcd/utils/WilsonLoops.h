@@ -569,14 +569,6 @@ public:
         U[d] = PeekIndex<LorentzIndex>(Umu, d);// some redundant copies
       }
 
-      StapleUpper(staple, U[mu], U[nu], mu, nu);
-    }
-  }
-
-  static void StapleUpper(GaugeMat &staple,
-                          const GaugeMat &U_mu, const GaugeMat &U_nu,
-                          int mu, int nu) {
-    if (nu != mu) {
       // mu
       // ^
       // |__>  nu
@@ -585,13 +577,15 @@ public:
       //      |
       //    __|
       //
+
       staple = Gimpl::ShiftStaple(
-               Gimpl::CovShiftForward(U_nu, nu,
-               Gimpl::CovShiftBackward(U_mu, mu,
-               Gimpl::CovShiftIdentityBackward(U_nu, nu))), mu);
+				  Gimpl::CovShiftForward(
+							 U[nu], nu,
+							 Gimpl::CovShiftBackward(
+										 U[mu], mu, Gimpl::CovShiftIdentityBackward(U[nu], nu))),
+				  mu);
     }
   }
-
 
   ////////////////////////////////////////////////////////////////////////
   // the sum over all staples on each site in direction mu,nu, lower part
@@ -606,14 +600,6 @@ public:
         U[d] = PeekIndex<LorentzIndex>(Umu, d);// some redundant copies
       }
 
-      StapleLower(staple, U[mu], U[nu], mu, nu);
-    }
-  }
-
-  static void StapleLower(GaugeMat &staple,
-                          const GaugeMat &U_mu, const GaugeMat &U_nu,
-                          int mu, int nu) {
-    if (nu != mu) {
       // mu
       // ^
       // |__>  nu
@@ -624,11 +610,45 @@ public:
       //
       //
       staple = Gimpl::ShiftStaple(
-               Gimpl::CovShiftBackward(U_nu, nu,
-               Gimpl::CovShiftBackward(U_mu, mu, U_nu)), mu);
+				  Gimpl::CovShiftBackward(U[nu], nu,
+                                  Gimpl::CovShiftBackward(U[mu], mu, U[nu])),
+          mu);
     }
   }
 
+  static void StapleDifference(GaugeMat &staple,
+                               const GaugeMat &U_mu, const GaugeMat &U_nu,
+                               int mu, int nu) {
+    GRID_TRACE("StapleDifference");
+    if (nu != mu) {
+        GaugeMat Vup(staple.Grid());
+        GaugeMat Vdn(staple.Grid());
+        // mu
+        // ^
+        // |__>  nu
+
+        //    __
+        //      |
+        //    __|
+        //
+        Vup = Gimpl::CovShiftForward(U_nu, nu,
+              Gimpl::CovShiftBackward(U_mu, mu,
+              Gimpl::CovShiftIdentityBackward(U_nu, nu)));
+        // mu
+        // ^
+        // |__>  nu
+
+        //  __
+        // |
+        // |__
+        //
+        //
+        Vdn = Gimpl::CovShiftBackward(U_nu, nu,
+              Gimpl::CovShiftBackward(U_mu, mu, U_nu));
+
+        staple = Gimpl::ShiftStaple(Vup - Vdn, mu);
+    }
+  }
 
   //////////////////////////////////////////////////////
   //  Field Strength
@@ -661,16 +681,12 @@ public:
     //     +--<--+     +--<--+
 
     GridBase *grid = U.Grid();
-    GaugeMat Vup(grid), Vdn(grid);
+    GaugeMat v(grid);
 
-    StapleUpper(Vup, U_mu, U_nu, mu, nu);
-    StapleLower(Vdn, U_mu, U_nu, mu, nu);
-
-    GaugeMat v = Vup - Vdn;
-    GaugeMat vu = v * U_mu;
+    StapleDifference(v, U_mu, U_nu, mu, nu);
 
     //FS = 0.25 * Ta(U_mu * v + Cshift(vu, mu, -1));
-    FS = (U_mu * v + Gimpl::CshiftLink(vu, mu, -1));
+    FS = (U_mu * v + Gimpl::CshiftLink(v * U_mu, mu, -1));
     FS = 0.125 * (FS - adj(FS));
   }
 
